@@ -75,6 +75,65 @@ const dust = createDustSystem(scene);
 const speedLines = createSpeedLineSystem(scene);
 const tireMarks = createTireMarkSystem(scene);
 
+// ── Cockpit Group for First Person View ──
+let existingCockpit = scene.getObjectByName('cockpit-group');
+if (existingCockpit) scene.remove(existingCockpit);
+
+const cockpitGroup = new THREE.Group();
+cockpitGroup.name = 'cockpit-group';
+
+const dashMat = new THREE.MeshPhongMaterial({ color: 0x1c1c1c, shininess: 40 });
+const dashMesh = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.15, 0.3), dashMat);
+dashMesh.position.set(0, -0.15, 0);
+cockpitGroup.add(dashMesh);
+
+// Custom hood mesh that slants forward in front of the dash (no clipping!)
+const hoodMat = new THREE.MeshPhongMaterial({ color: 0xff2200, shininess: 120, specular: 0x555555 });
+const hoodMesh = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 1.8), hoodMat);
+hoodMesh.position.set(0, -0.22, -0.95);
+hoodMesh.rotation.x = 0.08;
+cockpitGroup.add(hoodMesh);
+
+// A-pillars and roof frame to simulate interior cockpit (thinner and wider)
+const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.2, 0.06), dashMat);
+leftPillar.position.set(-0.9, 0.2, -0.15);
+leftPillar.rotation.z = -0.22;
+leftPillar.rotation.y = 0.1;
+cockpitGroup.add(leftPillar);
+
+const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.2, 0.06), dashMat);
+rightPillar.position.set(0.9, 0.2, -0.15);
+rightPillar.rotation.z = 0.22;
+rightPillar.rotation.y = -0.1;
+cockpitGroup.add(rightPillar);
+
+const topBeam = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), dashMat);
+topBeam.position.set(0, 0.65, -0.15);
+cockpitGroup.add(topBeam);
+
+const wheelGroup = new THREE.Group();
+wheelGroup.position.set(0, 0, 0.05);
+
+const wheelMat = new THREE.MeshPhongMaterial({ color: 0x2e2e2e, shininess: 80 });
+const rimMesh = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.025, 8, 24), wheelMat);
+wheelGroup.add(rimMesh);
+
+const spokeMat = new THREE.MeshPhongMaterial({ color: 0x444444, shininess: 100 });
+const spokeCenter = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 8), spokeMat);
+spokeCenter.rotation.x = Math.PI / 2;
+wheelGroup.add(spokeCenter);
+
+const spoke1 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.03, 0.01), spokeMat);
+wheelGroup.add(spoke1);
+
+const spoke2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.15, 0.01), spokeMat);
+spoke2.position.set(0, -0.07, 0);
+wheelGroup.add(spoke2);
+
+cockpitGroup.add(wheelGroup);
+cockpitGroup.visible = false;
+scene.add(cockpitGroup);
+
 const minimap = createMinimap(aiCars);
 minimap.setFrame(frame);
 
@@ -85,8 +144,12 @@ let music = null;
 let aiSound = null;
 
 // ══ INPUT ══
+let cameraMode = 0; // 0: Third Person, 1: Hood, 2: Bumper, 3: Aerial
 window.addEventListener('keydown', (e) => {
   G.keys[e.code] = true;
+  if (e.code === 'KeyC') {
+    cameraMode = (cameraMode + 1) % 4;
+  }
   if (!sound) {
     sound = createSoundEngine();
     aiSound = createAISound(sound.ctx, sound.master, sound.noiseBuf);
@@ -944,13 +1007,83 @@ function update() {
   }
 
   // ── Camera follow ──
-  const camBehind = moveDir.clone().multiplyScalar(-14);
-  const camUp = new THREE.Vector3(0, 7, 0);
-  const targetCamPos = playerCar.position.clone().add(camBehind).add(camUp);
-  camera.position.lerp(targetCamPos, 5 * dt);
-  const lookTarget = playerCar.position.clone();
-  lookTarget.y += 1;
-  camera.lookAt(lookTarget);
+  if (cameraMode === 0) {
+    // 0: Third Person (Original)
+    const camBehind = moveDir.clone().multiplyScalar(-14);
+    const camUp = new THREE.Vector3(0, 7, 0);
+    const targetCamPos = playerCar.position.clone().add(camBehind).add(camUp);
+    camera.position.lerp(targetCamPos, 5 * dt);
+    const lookTarget = playerCar.position.clone();
+    lookTarget.y += 1;
+    camera.lookAt(lookTarget);
+    
+    // Show player car and cabin in third person
+    playerCar.visible = (raceState !== 'attract');
+    const cabinMesh = playerCar.getObjectByName('cabin');
+    if (cabinMesh) cabinMesh.visible = true;
+    cockpitGroup.visible = false;
+  } else if (cameraMode === 1) {
+    // 1: First Person / Cockpit
+    const cockpitOffset = moveDir.clone().multiplyScalar(-0.1);
+    const cockpitUp = new THREE.Vector3(0, 1.15, 0);
+    const targetCamPos = playerCar.position.clone().add(cockpitOffset).add(cockpitUp);
+    camera.position.lerp(targetCamPos, 15 * dt);
+    
+    const lookTarget = playerCar.position.clone().add(moveDir.clone().multiplyScalar(20));
+    lookTarget.y += 1.0;
+    camera.lookAt(lookTarget);
+    
+    // Hide player car body in cockpit view to prevent clipping.
+    // Instead we render the custom hood mesh inside cockpitGroup!
+    playerCar.visible = false;
+    
+    // Position and update the cockpit models
+    cockpitGroup.visible = true;
+    
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    const cockpitPos = camera.position.clone()
+      .add(camDir.clone().multiplyScalar(0.65))
+      .add(new THREE.Vector3(0, -0.22, 0));
+    cockpitGroup.position.copy(cockpitPos);
+    
+    cockpitGroup.lookAt(camera.position);
+    cockpitGroup.rotateX(0.1); // slight angle towards driver
+    
+    // Steer the wheel based on keys
+    let targetAngle = 0;
+    if (G.keys['KeyA'] || G.keys['ArrowLeft']) targetAngle = Math.PI / 2;
+    if (G.keys['KeyD'] || G.keys['ArrowRight']) targetAngle = -Math.PI / 2;
+    
+    wheelGroup.rotation.z = THREE.MathUtils.lerp(wheelGroup.rotation.z, targetAngle, 10 * dt);
+  } else if (cameraMode === 2) {
+    // 2: Bumper / Road level
+    const bumperOffset = moveDir.clone().multiplyScalar(2.6);
+    const bumperUp = new THREE.Vector3(0, 0.4, 0);
+    const targetCamPos = playerCar.position.clone().add(bumperOffset).add(bumperUp);
+    camera.position.lerp(targetCamPos, 15 * dt);
+    
+    const lookTarget = playerCar.position.clone().add(moveDir.clone().multiplyScalar(20));
+    lookTarget.y += 0.4;
+    camera.lookAt(lookTarget);
+    
+    playerCar.visible = false;
+    cockpitGroup.visible = false;
+  } else if (cameraMode === 3) {
+    // 3: Aerial / Bird's-eye view
+    const aerialOffset = moveDir.clone().multiplyScalar(-4);
+    const aerialUp = new THREE.Vector3(0, 22, 0);
+    const targetCamPos = playerCar.position.clone().add(aerialOffset).add(aerialUp);
+    camera.position.lerp(targetCamPos, 4 * dt);
+    
+    const lookTarget = playerCar.position.clone();
+    camera.lookAt(lookTarget);
+    
+    playerCar.visible = (raceState !== 'attract');
+    const cabinMesh = playerCar.getObjectByName('cabin');
+    if (cabinMesh) cabinMesh.visible = true;
+    cockpitGroup.visible = false;
+  }
 
   const targetFov = 65 + (Math.abs(p.speed) / MAX_SPEED) * 15;
   camera.fov = THREE.MathUtils.lerp(camera.fov, targetFov, 3 * dt);

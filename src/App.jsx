@@ -10,7 +10,7 @@ function App() {
     <>
       <canvas id="game"></canvas>
       <canvas id="minimap" width="160" height="160"></canvas>
-      <div id="controls">WASD / Arrows · SPACE to drift · R to restart</div>
+      <div id="controls">WASD / Arrows · SPACE to drift · C to change camera · R to restart</div>
       <div id="credits">
         Developed by{' '}
         <a href="https://waveframe.com.ar/" target="_blank" rel="noopener noreferrer">

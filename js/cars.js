@@ -27,6 +27,7 @@ export function createCar(color) {
     new THREE.BoxGeometry(1.6, 0.5, 2),
     new THREE.MeshPhongMaterial({ color: 0x111122, shininess: 200, specular: 0x888888, transparent: true, opacity: 0.85 })
   );
+  cabin.name = 'cabin';
   cabin.position.set(0, 1.15, -0.3); cabin.castShadow = true; g.add(cabin);
 
   const spoiler = new THREE.Mesh(new THREE.BoxGeometry(2, 0.08, 0.5), bodyMat);
