@@ -6,10 +6,10 @@
 
 **Un juego de carreras arcade 3D construido desde cero con Three.js**
 
-[![Made with Three.js](https://img.shields.io/badge/Three.js-0.170-black?style=for-the-badge&logo=threedotjs&logoColor=white)](https://threejs.org/)
-[![React](https://img.shields.io/badge/React-18-61dafb?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![JavaScript](https://img.shields.io/badge/JavaScript-ES2024-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
+![Threejs](https://img.shields.io/badge/threejs-black?style=for-the-badge&logo=three.js&logoColor=white)
+![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
+![JavaScript](https://img.shields.io/badge/javascript-%23323330.svg?style=for-the-badge&logo=javascript&logoColor=%23F7DF1E)
 [![Mobile Ready](https://img.shields.io/badge/Mobile-Ready-00FFD5?style=for-the-badge&logo=android&logoColor=white)](#mobile)
 
 <br/>
