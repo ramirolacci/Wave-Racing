@@ -17,6 +17,7 @@ import { TelemetrySession, scheduleSave } from './telemetry.js';
 import { createSoundEngine } from './sound.js';
 import { createMusic } from './music.js';
 import { createAISound } from './ai-sound.js';
+import { createTouchControls } from './touch-controls.js';
 
 // ══ GLOBALS ══
 const G = {
@@ -143,6 +144,9 @@ let sound = null;
 let music = null;
 let aiSound = null;
 
+// ══ TOUCH CONTROLS ══
+const touchControls = createTouchControls(G.keys);
+
 // ══ INPUT ══
 let cameraMode = 0; // 0: Third Person, 1: Hood, 2: Bumper, 3: Aerial
 window.addEventListener('keydown', (e) => {
@@ -157,6 +161,34 @@ window.addEventListener('keydown', (e) => {
     music = createMusic(); music.start();
   }
 });
+
+// ── Helper to init audio on first touch (mobile AudioContext policy) ──
+function initAudioOnInteraction() {
+  if (!sound) {
+    sound = createSoundEngine();
+    aiSound = createAISound(sound.ctx, sound.master, sound.noiseBuf);
+    for (const ai of aiCars) ai.soundIdx = aiSound.addCar();
+    music = createMusic(); music.start();
+  }
+  // Remove listener after first interaction
+  window.removeEventListener('touchstart', initAudioOnInteraction);
+}
+window.addEventListener('touchstart', initAudioOnInteraction, { once: true });
+
+// ── Wire touch start/restart buttons ──
+if (touchControls) {
+  touchControls.startBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    initAudioOnInteraction();
+    if (raceState === 'attract') startRace();
+  }, { passive: false });
+
+  touchControls.restartBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (raceState === 'finished' || raceState === 'racing' || raceState === 'countdown' || raceState === 'grid') restartRace();
+  }, { passive: false });
+}
+
 window.addEventListener('keyup', (e) => { G.keys[e.code] = false; });
 
 // ══ RACE STATE ══
@@ -340,7 +372,9 @@ attractSub.style.cssText = `
   text-align: center; max-width: 90vw;
   animation: attractPulse 1.2s ease-in-out infinite;
 `;
-attractSub.textContent = 'PRESIONA ESPACIO PARA CORRER';
+attractSub.textContent = window.matchMedia('(pointer: coarse)').matches
+  ? 'TOCA LA PANTALLA PARA CORRER'
+  : 'PRESIONA ESPACIO PARA CORRER';
 
 // Add pulse and credit animations/styles
 let attractStyle = document.getElementById('attract-style');
@@ -469,6 +503,8 @@ function startRace() {
   countdownEl.style.opacity = '0';
   lapNotifyEl.style.opacity = '0';
 
+  if (touchControls) touchControls.update('grid');
+
   clock.start();
 }
 
@@ -507,8 +543,11 @@ function restartRace() {
   countdownEl.style.opacity = '0';
   lapNotifyEl.style.opacity = '0';
 
+  if (touchControls) touchControls.update('grid');
+
   clock.start();
 }
+
 
 // R key to restart
 window.addEventListener('keydown', (e) => {
@@ -685,6 +724,9 @@ function update() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const p = G.player;
   const elapsed = clock.elapsedTime;
+
+  // ── Sync touch controls visibility with race state ──
+  if (touchControls) touchControls.update(raceState);
 
   // ══════════════════════════════════════════
   //  STATE: ATTRACT — AI car racing, helicopter cam

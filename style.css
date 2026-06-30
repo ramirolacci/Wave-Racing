@@ -9,6 +9,9 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: #000;
+  /* Prevent iOS bounce scroll */
+  position: fixed;
+  touch-action: none;
 }
 
 #game {
@@ -59,3 +62,77 @@ html, body {
 #credits a:hover {
   text-decoration: underline;
 }
+
+/* ═══════════════════════════════════════
+   ROTATE OVERLAY — shown in portrait mode
+   ═══════════════════════════════════════ */
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  font-family: 'Orbitron', sans-serif;
+  pointer-events: all;
+}
+
+#rotate-overlay .rotate-icon {
+  font-size: 80px;
+  animation: rotateHint 2s ease-in-out infinite;
+  display: block;
+  line-height: 1;
+}
+
+#rotate-overlay .rotate-title {
+  font-size: clamp(18px, 5vw, 26px);
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 3px;
+  text-align: center;
+}
+
+#rotate-overlay .rotate-sub {
+  font-size: clamp(12px, 3vw, 15px);
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 2px;
+  text-align: center;
+}
+
+#rotate-overlay .rotate-bar {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #00ffd5, #00a2ff);
+  border-radius: 2px;
+  animation: barPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes rotateHint {
+  0%   { transform: rotate(0deg)   scale(1);    opacity: 0.7; }
+  40%  { transform: rotate(-90deg) scale(1.08); opacity: 1;   }
+  60%  { transform: rotate(-90deg) scale(1.08); opacity: 1;   }
+  100% { transform: rotate(0deg)   scale(1);    opacity: 0.7; }
+}
+
+@keyframes barPulse {
+  0%, 100% { opacity: 0.4; transform: scaleX(0.6); }
+  50%       { opacity: 1;   transform: scaleX(1);   }
+}
+
+/* Only show rotate overlay in portrait on touch devices */
+@media (pointer: coarse) and (orientation: portrait) {
+  #rotate-overlay {
+    display: flex;
+  }
+}
+
+/* Touch: hide credits on mobile to save space */
+@media (pointer: coarse) {
+  #credits {
+    display: none;
+  }
+}
+
