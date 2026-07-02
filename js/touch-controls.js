@@ -208,6 +208,44 @@ export function createTouchControls(keys) {
       filter: drop-shadow(0 0 4px rgba(0, 255, 213, 0.5));
       pointer-events: none;
     }
+
+    /* ── Pause Button ── */
+    #tc-pause-btn {
+      position: fixed;
+      top: max(env(safe-area-inset-top, 0px), 12px);
+      right: max(env(safe-area-inset-right, 0px), 68px);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid rgba(0, 255, 213, 0.35);
+      box-shadow: 0 0 15px rgba(0, 255, 213, 0.15), inset 0 0 8px rgba(0, 255, 213, 0.1);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      padding: 0;
+    }
+
+    #tc-pause-btn:active {
+      transform: scale(0.9);
+      border-color: rgba(0, 255, 213, 0.85);
+      box-shadow: 0 0 20px rgba(0, 255, 213, 0.45), inset 0 0 10px rgba(0, 255, 213, 0.25);
+    }
+
+    #tc-pause-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: #00ffd5;
+      filter: drop-shadow(0 0 4px rgba(0, 255, 213, 0.5));
+      pointer-events: none;
+    }
   `;
   document.head.appendChild(styleEl);
 
@@ -583,26 +621,26 @@ export function createTouchControls(keys) {
     if (raceState === lastState) return;
     lastState = raceState;
 
+    const pauseBtn = document.getElementById('tc-pause-btn');
+
     if (raceState === 'attract') {
       startBtn.style.display   = 'flex';
       restartBtn.style.display = 'none';
       container.style.display  = 'none';
+      if (pauseBtn) pauseBtn.style.display = 'none';
     } else if (raceState === 'finished') {
       startBtn.style.display   = 'none';
       restartBtn.style.display = 'block';
       container.style.display  = 'none';
+      if (pauseBtn) pauseBtn.style.display = 'none';
     } else {
       // grid · countdown · racing
       startBtn.style.display   = 'none';
       restartBtn.style.display = 'none';
       container.style.display  = 'block';
+      if (pauseBtn) pauseBtn.style.display = 'flex';
     }
   }
-
-  // Initial: attract state
-  startBtn.style.display   = 'flex';
-  restartBtn.style.display = 'none';
-  container.style.display  = 'none';
 
   // ══════════════════════════════════════
   //  FULLSCREEN BUTTON
@@ -619,6 +657,32 @@ export function createTouchControls(keys) {
     </svg>
   `;
   document.body.appendChild(fsBtn);
+
+  // ══════════════════════════════════════
+  //  PAUSE BUTTON
+  // ══════════════════════════════════════
+  let pauseBtn = document.getElementById('tc-pause-btn');
+  if (pauseBtn) pauseBtn.remove();
+  pauseBtn = document.createElement('button');
+  pauseBtn.id = 'tc-pause-btn';
+  pauseBtn.setAttribute('aria-label', 'Pausa');
+  pauseBtn.innerHTML = `
+    <svg viewBox="0 0 24 24">
+      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+    </svg>
+  `;
+  document.body.appendChild(pauseBtn);
+
+  pauseBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (window.togglePause) window.togglePause();
+  });
+
+  // Initial: attract state
+  startBtn.style.display   = 'flex';
+  restartBtn.style.display = 'none';
+  container.style.display  = 'none';
+  pauseBtn.style.display   = 'none';
 
   function toggleFullscreen() {
     const doc = window.document;
