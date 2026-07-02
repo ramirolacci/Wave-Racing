@@ -313,5 +313,5 @@ export function createMusic() {
     loopTimer = null;
   }
 
-  return { start, stop, trackName: trackNames[pick] };
+  return { start, stop, trackName: trackNames[pick], master, ctx };
 }

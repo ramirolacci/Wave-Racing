@@ -346,7 +346,7 @@ attractEl.id = 'attract-overlay';
 attractEl.style.cssText = `
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding-top: 15vh;
+  padding-top: ${window.matchMedia('(pointer: coarse)').matches ? '0px' : '15vh'};
   z-index: 250; pointer-events: none;
   font-family: 'Orbitron', sans-serif;
 `;
@@ -358,22 +358,13 @@ waveIcon.src = '/WaveIcon.png';
 waveIcon.alt = 'WaveIcon';
 
 const attractTitle = document.createElement('div');
-attractTitle.style.cssText = `
-  font-weight: 900; font-size: clamp(32px, 10vw, 72px); color: #ffffff;
-  filter: drop-shadow(0 0 15px rgba(0,255,213,0.4)) drop-shadow(0 4px 10px rgba(0,0,0,0.9));
-  margin-bottom: 30px; letter-spacing: clamp(2px, 0.8vw, 6px);
-  text-align: center; word-break: break-word; max-width: 90vw;
-`;
+attractTitle.className = 'attract-title';
 attractTitle.innerHTML = '<span style="background: linear-gradient(135deg, #00ffd5 0%, #00a2ff 45%, #a200ff 80%, #ff00c8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">WAVE</span> RACING';
+
 const attractSub = document.createElement('div');
-attractSub.style.cssText = `
-  font-weight: 700; font-size: clamp(14px, 3.5vw, 24px); color: rgba(255,255,255,0.9);
-  text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.8);
-  text-align: center; max-width: 90vw;
-  animation: attractPulse 1.2s ease-in-out infinite;
-`;
+attractSub.className = 'attract-sub';
 attractSub.textContent = window.matchMedia('(pointer: coarse)').matches
-  ? 'TOCA LA PANTALLA PARA CORRER'
+  ? '' // On touch devices we show the big startBtn in the center, so we don't need text
   : 'PRESIONA ESPACIO PARA CORRER';
 
 // Add pulse and credit animations/styles
@@ -387,6 +378,28 @@ attractStyle.textContent = `
     50% { opacity: 1; transform: scale(1.05); }
   }
 
+  .attract-title {
+    font-weight: 900;
+    font-size: clamp(32px, 8vw, 68px);
+    color: #ffffff;
+    filter: drop-shadow(0 0 15px rgba(0,255,213,0.4)) drop-shadow(0 4px 10px rgba(0,0,0,0.9));
+    margin-bottom: 24px;
+    letter-spacing: clamp(2px, 0.8vw, 6px);
+    text-align: center;
+    word-break: break-word;
+    max-width: 90vw;
+  }
+
+  .attract-sub {
+    font-weight: 700;
+    font-size: clamp(14px, 3vw, 24px);
+    color: rgba(255,255,255,0.9);
+    text-shadow: 0 0 20px rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.8);
+    text-align: center;
+    max-width: 90vw;
+    animation: attractPulse 1.2s ease-in-out infinite;
+  }
+
   .wave-icon {
     width: clamp(110px, 18vw, 160px);
     height: auto;
@@ -398,6 +411,17 @@ attractStyle.textContent = `
   @keyframes floatIcon {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50% { transform: translateY(-8px) rotate(3deg); }
+  }
+
+  @media (pointer: coarse) {
+    .attract-title {
+      font-size: clamp(26px, 6vw, 44px);
+      margin-bottom: 12px;
+    }
+    .wave-icon {
+      width: clamp(75px, 10vw, 95px);
+      margin-bottom: 12px;
+    }
   }
 `;
 document.head.appendChild(attractStyle);
@@ -549,14 +573,249 @@ function restartRace() {
 }
 
 
-// R key to restart
+// ══════════════════════════════════════
+//  PAUSE SYSTEM & OVERLAY
+// ══════════════════════════════════════
+let sfxEnabled = true;
+let musicEnabled = true;
+let isPaused = false;
+
+let pauseStyle = document.getElementById('pause-style');
+if (pauseStyle) pauseStyle.remove();
+pauseStyle = document.createElement('style');
+pauseStyle.id = 'pause-style';
+pauseStyle.textContent = `
+  #pause-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', sans-serif;
+  }
+  .pause-box {
+    background: rgba(10, 15, 20, 0.85);
+    border: 2px solid rgba(0, 255, 213, 0.3);
+    box-shadow: 0 0 40px rgba(0, 255, 213, 0.15), inset 0 0 20px rgba(0, 255, 213, 0.05);
+    border-radius: 20px;
+    width: 90%;
+    max-width: 420px;
+    padding: 30px;
+    text-align: center;
+  }
+  .pause-title {
+    font-size: clamp(28px, 6vw, 36px);
+    font-weight: 900;
+    letter-spacing: 5px;
+    color: #fff;
+    background: linear-gradient(135deg, #00ffd5 0%, #00a2ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 213, 0.5));
+    margin-bottom: 25px;
+  }
+  .pause-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pause-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.85);
+    padding: 12px 18px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(12px, 2.5vw, 14px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pause-btn:active {
+    transform: scale(0.97);
+  }
+  .pause-btn:hover {
+    background: rgba(0, 255, 213, 0.1);
+    border-color: rgba(0, 255, 213, 0.5);
+    color: #fff;
+    box-shadow: 0 0 15px rgba(0, 255, 213, 0.2);
+  }
+  .pause-btn.resume-btn {
+    background: linear-gradient(135deg, rgba(0, 255, 213, 0.2), rgba(0, 162, 255, 0.2));
+    border-color: rgba(0, 255, 213, 0.6);
+    color: #fff;
+    font-weight: 900;
+    box-shadow: 0 0 20px rgba(0, 255, 213, 0.2);
+    font-size: clamp(13px, 2.8vw, 15px);
+  }
+  .pause-btn.resume-btn:hover {
+    background: linear-gradient(135deg, rgba(0, 255, 213, 0.35), rgba(0, 162, 255, 0.35));
+    border-color: rgba(0, 255, 213, 0.9);
+    box-shadow: 0 0 25px rgba(0, 255, 213, 0.4);
+  }
+  .pause-btn.restart-btn {
+    border-color: rgba(255, 80, 40, 0.3);
+  }
+  .pause-btn.restart-btn:hover {
+    background: rgba(255, 80, 40, 0.15);
+    border-color: rgba(255, 80, 40, 0.7);
+    color: #ffaa99;
+    box-shadow: 0 0 15px rgba(255, 80, 40, 0.25);
+  }
+  .pause-btn.exit-btn {
+    border-color: rgba(255, 170, 0, 0.3);
+  }
+  .pause-btn.exit-btn:hover {
+    background: rgba(255, 170, 0, 0.15);
+    border-color: rgba(255, 170, 0, 0.7);
+    color: #ffe0aa;
+    box-shadow: 0 0 15px rgba(255, 170, 0, 0.25);
+  }
+`;
+document.head.appendChild(pauseStyle);
+
+let pauseEl = document.getElementById('pause-overlay');
+if (pauseEl) pauseEl.remove();
+pauseEl = document.createElement('div');
+pauseEl.id = 'pause-overlay';
+pauseEl.innerHTML = `
+  <div class="pause-box">
+    <div class="pause-title">PAUSA</div>
+    <div class="pause-options">
+      <button class="pause-btn resume-btn">CONTINUAR</button>
+      <button class="pause-btn sfx-btn">SONIDO: ON</button>
+      <button class="pause-btn music-btn">MÚSICA: ON</button>
+      <button class="pause-btn cam-btn">CÁMARA: TERCERA PERSONA</button>
+      <button class="pause-btn restart-btn">REINICIAR CARRERA</button>
+      <button class="pause-btn exit-btn">SALIR AL MENÚ</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(pauseEl);
+
+function updatePauseMenuUI() {
+  const sfxBtn = pauseEl.querySelector('.sfx-btn');
+  const musicBtn = pauseEl.querySelector('.music-btn');
+  const camBtn = pauseEl.querySelector('.cam-btn');
+
+  if (sfxBtn) sfxBtn.textContent = `SONIDO: ${sfxEnabled ? 'ON' : 'OFF'}`;
+  if (musicBtn) musicBtn.textContent = `MÚSICA: ${musicEnabled ? 'ON' : 'OFF'}`;
+  
+  const camLabels = ['TERCERA PERSONA', 'CAPOT', 'PARAGOLPES', 'AÉREA'];
+  if (camBtn) camBtn.textContent = `CÁMARA: ${camLabels[cameraMode]}`;
+}
+
+function showPauseMenu() {
+  updatePauseMenuUI();
+  pauseEl.style.display = 'flex';
+}
+
+function hidePauseMenu() {
+  pauseEl.style.display = 'none';
+}
+
+function resetKeys() {
+  for (const k in G.keys) {
+    G.keys[k] = false;
+  }
+}
+
+function togglePause() {
+  if (raceState === 'attract' || raceState === 'finished') return;
+
+  isPaused = !isPaused;
+
+  if (isPaused) {
+    clock.stop();
+    resetKeys();
+    if (sound && sound.ctx) sound.ctx.suspend().catch(() => {});
+    if (music && music.ctx) music.ctx.suspend().catch(() => {});
+    showPauseMenu();
+  } else {
+    clock.start();
+    if (sound && sound.ctx) sound.ctx.resume().catch(() => {});
+    if (music && music.ctx) music.ctx.resume().catch(() => {});
+    hidePauseMenu();
+  }
+}
+window.togglePause = togglePause;
+
+// Wire up events with hybrid touch/click helper to prevent iOS Safari input blocking
+function bindTap(btn, callback) {
+  if (!btn) return;
+  const handler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    callback(e);
+  };
+  btn.addEventListener('touchstart', handler, { passive: false });
+  btn.addEventListener('click', handler);
+}
+
+bindTap(pauseEl.querySelector('.resume-btn'), () => {
+  togglePause();
+});
+
+bindTap(pauseEl.querySelector('.sfx-btn'), () => {
+  sfxEnabled = !sfxEnabled;
+  if (sound && sound.master) {
+    sound.master.gain.value = sfxEnabled ? 0.75 : 0;
+  }
+  updatePauseMenuUI();
+});
+
+bindTap(pauseEl.querySelector('.music-btn'), () => {
+  musicEnabled = !musicEnabled;
+  if (music && music.master) {
+    music.master.gain.value = musicEnabled ? 0.50 : 0;
+  }
+  updatePauseMenuUI();
+});
+
+bindTap(pauseEl.querySelector('.cam-btn'), () => {
+  cameraMode = (cameraMode + 1) % 4;
+  updatePauseMenuUI();
+});
+
+bindTap(pauseEl.querySelector('.restart-btn'), () => {
+  togglePause();
+  restartRace();
+});
+
+bindTap(pauseEl.querySelector('.exit-btn'), () => {
+  togglePause();
+  raceState = 'attract';
+  positionForAttract();
+  playerCar.visible = false;
+  attractEl.style.display = 'flex';
+  
+  if (sound) sound.reset();
+  if (aiSound) aiSound.reset();
+  
+  resultsEl.innerHTML = '';
+  resultsEl.style.background = 'rgba(0,0,0,0.0)';
+  resultsEl.style.pointerEvents = 'none';
+  countdownEl.style.opacity = '0';
+  lapNotifyEl.style.opacity = '0';
+});
+
+// Space to start, R to restart, Esc/P to pause
 window.addEventListener('keydown', (e) => {
-  // Space to start from attract, or R to restart
   if (e.code === 'Space' && raceState === 'attract') {
     startRace();
   }
   if (e.code === 'KeyR' && (raceState === 'finished' || raceState === 'racing' || raceState === 'countdown' || raceState === 'grid')) {
     restartRace();
+  }
+  if ((e.code === 'Escape' || e.code === 'KeyP') && (raceState === 'racing' || raceState === 'countdown' || raceState === 'grid')) {
+    togglePause();
   }
 });
 
@@ -721,12 +980,24 @@ function updatePlayerPhysics(dt) {
 }
 
 function update() {
+  if (isPaused) return;
   const dt = Math.min(clock.getDelta(), 0.05);
   const p = G.player;
   const elapsed = clock.elapsedTime;
 
   // ── Sync touch controls visibility with race state ──
   if (touchControls) touchControls.update(raceState);
+
+  // ── Sync HUD / Minimap visibility with race state ──
+  const hudCanvas = document.getElementById('hud-canvas');
+  const hudOverlay = document.getElementById('hud-overlay');
+  const minimapCanvas = document.getElementById('minimap');
+  const controlsEl = document.getElementById('controls');
+  const showHUD = raceState === 'racing' || raceState === 'countdown' || raceState === 'grid';
+  if (hudCanvas) hudCanvas.style.display = showHUD ? 'block' : 'none';
+  if (hudOverlay) hudOverlay.style.display = showHUD ? 'block' : 'none';
+  if (minimapCanvas) minimapCanvas.style.display = showHUD ? 'block' : 'none';
+  if (controlsEl) controlsEl.style.display = showHUD ? 'block' : 'none';
 
   // ══════════════════════════════════════════
   //  STATE: ATTRACT — AI car racing, helicopter cam

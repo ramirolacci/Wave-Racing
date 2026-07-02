@@ -196,7 +196,7 @@ export function createHUD() {
   const overlay = document.createElement('canvas');
   overlay.id = 'hud-overlay';
   overlay.width = window.innerWidth;
-  overlay.height = 80;
+  overlay.height = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 ? 150 : 80;
   overlay.style.cssText = `
     position: fixed;
     top: 0;
@@ -249,9 +249,11 @@ export function createHUD() {
     octx.strokeStyle = 'rgba(0,0,0,0.7)';
     octx.lineWidth = 5;
     octx.lineJoin = 'round';
-    octx.strokeText(lapText, overlay.width - 22, 18);
+    const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    const lapX = isMobile ? overlay.width - 128 : overlay.width - 22;
+    octx.strokeText(lapText, lapX, 18);
     octx.fillStyle = '#ffffff';
-    octx.fillText(lapText, overlay.width - 22, 18);
+    octx.fillText(lapText, lapX, 18);
     octx.restore();
 
     // Off-track warning
@@ -264,9 +266,11 @@ export function createHUD() {
         octx.strokeStyle = 'rgba(0,0,0,0.8)';
         octx.lineWidth = 5;
         octx.lineJoin = 'round';
-        octx.strokeText('FUERA DE PISTA', overlay.width / 2, 26);
+        const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        const warnY = isMobile ? 125 : 26;
+        octx.strokeText('FUERA DE PISTA', overlay.width / 2, warnY);
         octx.fillStyle = '#ff3333';
-        octx.fillText('FUERA DE PISTA', overlay.width / 2, 26);
+        octx.fillText('FUERA DE PISTA', overlay.width / 2, warnY);
         octx.restore();
       }
     }
